@@ -1,0 +1,170 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  SUPERADMIN
+  ADMIN
+  POC
+}
+
+enum FamilyScope {
+  HOSTEL
+  DEPARTMENT
+  YEAR_BRANCH
+}
+
+enum GroupScopeType {
+  HOSTEL
+  WING
+  DEPARTMENT
+}
+
+enum TurnoutAction {
+  MARK
+  UNMARK
+}
+
+enum AuditEventType {
+  TURNOUT
+  BULK_VOTE
+  ROSTER_IMPORT
+  USER_MANAGEMENT
+}
+
+enum ImportStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+model User {
+  id               String               @id @default(cuid())
+  loginId          String               @unique
+  name             String
+  passwordHash     String
+  role             UserRole
+  familyScope      FamilyScope?
+  isActive         Boolean              @default(true)
+  managerId        String?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([managerId])
+  @@index([role])
+  manager          User?                @relation("AdminPocs", fields: [managerId], references: [id])
+  pocs             User[]               @relation("AdminPocs")
+  groupAssignments POCGroupAssignment[]
+  auditEvents      AuditEvent[]
+  bulkVoteEntries  BulkVoteEntry[]
+  votedStudents    Student[]            @relation("StudentLastVotedBy")
+}
+
+model Student {
+  id          String       @id @default(cuid())
+  rollNo      String       @unique
+  studentName String
+  hostel      String
+  wing        String       @default("")
+  roomNo      String       @default("")
+  phoneNo     String       @default("")
+  department  String
+  year        String
+  branch      String
+  yearBranch  String
+  hasVoted    Boolean      @default(false)
+  votedAt     DateTime?
+  votedById   String?
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  votedBy     User?        @relation("StudentLastVotedBy", fields: [votedById], references: [id])
+  auditEvents AuditEvent[]
+
+  @@index([hostel])
+  @@index([hostel, hasVoted])
+  @@index([hostel, wing])
+  @@index([department])
+  @@index([yearBranch])
+  @@index([hasVoted])
+}
+
+model Group {
+  id          String               @id @default(cuid())
+  family      FamilyScope
+  scopeType   GroupScopeType       @default(HOSTEL)
+  hostel      String
+  value       String
+  label       String
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+  assignments POCGroupAssignment[]
+
+  @@unique([family, scopeType, hostel, value])
+  @@index([family, scopeType, hostel])
+}
+
+model POCGroupAssignment {
+  id        String   @id @default(cuid())
+  userId    String
+  groupId   String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group    @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, groupId])
+}
+
+model AuditEvent {
+  id          String         @id @default(cuid())
+  actorId     String
+  studentId   String?
+  type        AuditEventType
+  action      TurnoutAction?
+  description String
+  reason      String?
+  payload     Json?
+  createdAt   DateTime       @default(now())
+  actor       User           @relation(fields: [actorId], references: [id], onDelete: Cascade)
+  student     Student?       @relation(fields: [studentId], references: [id], onDelete: SetNull)
+
+  @@index([type, createdAt])
+  @@index([studentId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model ImportJob {
+  id           String       @id @default(cuid())
+  filename     String
+  status       ImportStatus @default(PENDING)
+  createdCount Int          @default(0)
+  updatedCount Int          @default(0)
+  failedCount  Int          @default(0)
+  summary      Json?
+  errorMessage String?
+  actorId      String
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+}
+
+model BulkVoteEntry {
+  id        String   @id @default(cuid())
+  actorId   String
+  count     Int
+  remarks   String
+  createdAt DateTime @default(now())
+  actor     User     @relation(fields: [actorId], references: [id], onDelete: Cascade)
+
+  @@index([createdAt])
+  @@index([actorId, createdAt])
+}

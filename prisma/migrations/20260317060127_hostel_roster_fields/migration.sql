@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Student" ADD COLUMN     "phoneNo" TEXT NOT NULL DEFAULT '',
+ADD COLUMN     "roomNo" TEXT NOT NULL DEFAULT '';
