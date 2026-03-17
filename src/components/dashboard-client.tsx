@@ -227,7 +227,10 @@ export function DashboardClient({ initialData }: Props) {
   // Load users context lazily the first time the Users tab is opened.
   useEffect(() => {
     if (activeTab === "users" && !usersCtxLoaded) {
-      void loadUsersContext();
+      const timeoutId = window.setTimeout(() => {
+        void loadUsersContext();
+      }, 0);
+      return () => window.clearTimeout(timeoutId);
     }
   }, [activeTab, usersCtxLoaded]);
 
