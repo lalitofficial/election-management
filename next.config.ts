@@ -22,7 +22,9 @@ const securityHeaders = [
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  output: "standalone",
+  outputFileTracingIncludes: {
+    "/**": ["./src/generated/prisma/**/*"],
+  },
   async headers() {
     return [{ source: "/(.*)", headers: securityHeaders }];
   },
