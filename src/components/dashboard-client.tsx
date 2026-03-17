@@ -136,11 +136,17 @@ export function DashboardClient({ initialData }: Props) {
   const admins = usersCtx.users.filter((user) => user.role === "ADMIN");
   const groupOptions = usersCtx.availableGroups.filter((group) => group.family === userForm.familyScope);
   const searchHostelOptions = useMemo(
-    () =>
-      [...new Set(usersCtx.availableGroups.filter((group) => group.scopeType === "HOSTEL").map((group) => group.hostel))].sort(
-        (left, right) => left.localeCompare(right),
-      ),
-    [usersCtx.availableGroups],
+    () => {
+      const scopedBreakdownHostels = (data.familyBreakdowns.HOSTEL ?? []).map((row) => row.label);
+      const scopedGroupHostels = usersCtx.availableGroups
+        .filter((group) => group.scopeType === "HOSTEL")
+        .map((group) => group.hostel);
+
+      return [...new Set([...scopedBreakdownHostels, ...scopedGroupHostels])].sort((left, right) =>
+        left.localeCompare(right),
+      );
+    },
+    [data.familyBreakdowns.HOSTEL, usersCtx.availableGroups],
   );
   const hostelOptions = groupOptions.filter((group) => group.scopeType === "HOSTEL");
   const selectedManager = admins.find((admin) => admin.id === userForm.managerId);
@@ -444,35 +450,35 @@ export function DashboardClient({ initialData }: Props) {
           {activeTab === "main" && (
             <>
               {data.viewer.role !== "SUPERADMIN" && (
-                <Grid container spacing={2}>
+                <Grid container spacing={1}>
                   <Grid size={{ xs: 6, sm: 4 }}>
-                    <MetricCard label="Students" value={String(data.summary.totalStudents)} />
+                    <MetricCard label="Students" value={String(data.summary.totalStudents)} compact />
                   </Grid>
                   <Grid size={{ xs: 6, sm: 4 }}>
-                    <MetricCard label="Voted" value={String(data.summary.votedStudents)} />
+                    <MetricCard label="Voted" value={String(data.summary.votedStudents)} compact />
                   </Grid>
                   <Grid size={{ xs: 6, sm: 4 }}>
-                    <MetricCard label="Turnout" value={data.summary.turnoutText} />
+                    <MetricCard label="Turnout" value={data.summary.turnoutText} compact />
                   </Grid>
                 </Grid>
               )}
 
               <Card>
-                <CardContent sx={{ p: 1.5 }}>
+                <CardContent sx={{ p: { xs: 1.25, sm: 1.5 } }}>
                   <Box component="form" onSubmit={handleSearch}>
                     <Stack
-                      direction="row"
-                      spacing={1}
+                      direction={{ xs: "column", sm: "row" }}
+                      spacing={{ xs: 0.75, sm: 1 }}
                       flexWrap="wrap"
                       useFlexGap
-                      alignItems="center"
+                      alignItems={{ xs: "stretch", sm: "center" }}
                     >
                       <TextField
                         size="small"
                         placeholder="Roll no, name, phone"
                         value={filters.q}
                         onChange={(e) => setFilters((cur) => ({ ...cur, q: e.target.value }))}
-                        sx={{ flex: "1 1 260px", minWidth: 220 }}
+                        sx={{ flex: "1 1 260px", minWidth: { xs: 0, sm: 220 } }}
                         slotProps={{
                           input: {
                             startAdornment: (
@@ -488,7 +494,7 @@ export function DashboardClient({ initialData }: Props) {
                         select
                         value={filters.hostel}
                         onChange={(e) => setFilters((cur) => ({ ...cur, hostel: e.target.value }))}
-                        sx={{ flex: "0 0 168px" }}
+                        sx={{ flex: { sm: "0 0 168px" } }}
                       >
                         <MenuItem value="">All hostels</MenuItem>
                         {searchHostelOptions.map((hostel) => (
@@ -504,35 +510,42 @@ export function DashboardClient({ initialData }: Props) {
                         onChange={(e) =>
                           setFilters((cur) => ({ ...cur, roomNo: e.target.value }))
                         }
-                        sx={{ flex: "0 0 100px" }}
+                        sx={{ flex: { sm: "0 0 100px" } }}
                       />
-                      <Button
-                        type="submit"
-                        variant="contained"
-                        size="small"
-                        disabled={searching}
-                        sx={{ minWidth: 88 }}
+                      <Stack
+                        direction="row"
+                        spacing={0.75}
+                        sx={{ width: { xs: "100%", sm: "auto" } }}
                       >
-                        {searching ? "Loading" : "Search"}
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="text"
-                        size="small"
-                        disabled={searching}
-                        onClick={() => {
-                          const nextFilters = { q: "", hostel: "", roomNo: "" };
-                          setFilters(nextFilters);
-                          void runSearch(nextFilters);
-                        }}
-                      >
-                        Clear
-                      </Button>
+                        <Button
+                          type="submit"
+                          variant="contained"
+                          size="small"
+                          disabled={searching}
+                          sx={{ minWidth: 88, flex: { xs: 1, sm: "0 0 auto" } }}
+                        >
+                          {searching ? "Loading" : "Search"}
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="text"
+                          size="small"
+                          disabled={searching}
+                          sx={{ flex: { xs: 1, sm: "0 0 auto" } }}
+                          onClick={() => {
+                            const nextFilters = { q: "", hostel: "", roomNo: "" };
+                            setFilters(nextFilters);
+                            void runSearch(nextFilters);
+                          }}
+                        >
+                          Clear
+                        </Button>
+                      </Stack>
                       <Chip
                         size="small"
                         variant="outlined"
                         label={`${searchResults.length} loaded`}
-                        sx={{ ml: "auto" }}
+                        sx={{ ml: { sm: "auto" }, alignSelf: { xs: "flex-start", sm: "center" } }}
                       />
                     </Stack>
                   </Box>
@@ -542,8 +555,90 @@ export function DashboardClient({ initialData }: Props) {
               {searching ? <LinearProgress /> : null}
 
               {searchResults.length > 0 && (
-                <Paper variant="outlined">
-                  <TableContainer>
+                <>
+                  <Stack spacing={1} sx={{ display: { xs: "flex", sm: "none" } }}>
+                    {searchResults.map((student) => (
+                      <Paper
+                        key={student.id}
+                        variant="outlined"
+                        sx={{
+                          p: 1.1,
+                          bgcolor: student.hasVoted ? "success.50" : "background.paper",
+                        }}
+                      >
+                        <Stack spacing={0.85}>
+                          <Stack direction="row" justifyContent="space-between" spacing={1}>
+                            <Box sx={{ minWidth: 0 }}>
+                              <Typography variant="body2" fontWeight={600} noWrap>
+                                {student.studentName}
+                              </Typography>
+                              <Typography variant="caption" color="text.secondary" noWrap>
+                                {student.rollNo}
+                              </Typography>
+                            </Box>
+                            <StatusChip hasVoted={student.hasVoted} />
+                          </Stack>
+
+                          <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap>
+                            <Chip size="small" variant="outlined" label={student.hostel} />
+                            <Chip size="small" variant="outlined" label={`Room ${student.roomNo}`} />
+                            <Chip size="small" variant="outlined" label={student.wing} />
+                          </Stack>
+
+                          <Typography variant="caption" color="text.secondary">
+                            {student.department} · {student.year}
+                          </Typography>
+
+                          <Stack direction="row" spacing={0.75}>
+                            {student.pocs.length > 0 ? (
+                              <Button
+                                size="small"
+                                variant="text"
+                                sx={{ px: 0.5, minWidth: 0 }}
+                                onClick={() =>
+                                  openPocDialog(
+                                    student.studentName,
+                                    student.pocs,
+                                    `${student.hostel} · ${student.wing}`,
+                                  )
+                                }
+                              >
+                                {getPocButtonLabel(student.pocs)}
+                              </Button>
+                            ) : null}
+
+                            {student.hasVoted ? (
+                              <Button
+                                size="small"
+                                variant="outlined"
+                                color="error"
+                                startIcon={<UndoOutlined fontSize="small" />}
+                                disabled={busyIds.has(student.id)}
+                                onClick={() => void toggleStudentVote(student)}
+                                sx={{ ml: "auto" }}
+                              >
+                                {busyIds.has(student.id) ? "..." : "Undo"}
+                              </Button>
+                            ) : (
+                              <Button
+                                size="small"
+                                variant="contained"
+                                startIcon={<CheckCircleOutlineOutlined fontSize="small" />}
+                                disabled={busyIds.has(student.id)}
+                                onClick={() => void toggleStudentVote(student)}
+                                sx={{ ml: "auto" }}
+                              >
+                                {busyIds.has(student.id) ? "..." : "Voted"}
+                              </Button>
+                            )}
+                          </Stack>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+
+                  <Paper variant="outlined" sx={{ display: { xs: "none", sm: "block" } }}>
+                    <TableContainer>
                     <Table stickyHeader size="small">
                       <TableHead>
                         <TableRow>
@@ -651,8 +746,9 @@ export function DashboardClient({ initialData }: Props) {
                         ))}
                       </TableBody>
                     </Table>
-                  </TableContainer>
-                </Paper>
+                    </TableContainer>
+                  </Paper>
+                </>
               )}
 
               {searchResults.length === 0 && !searching && (
@@ -1831,14 +1927,22 @@ function SectionCard({
   );
 }
 
-function MetricCard({ label, value }: { label: string; value: string }) {
+function MetricCard({
+  label,
+  value,
+  compact = false,
+}: {
+  label: string;
+  value: string;
+  compact?: boolean;
+}) {
   return (
     <Card>
-      <CardContent sx={{ p: 2.5 }}>
+      <CardContent sx={{ p: compact ? { xs: 1.25, sm: 1.75 } : 2.5 }}>
         <Typography variant="caption" color="text.secondary">
           {label}
         </Typography>
-        <Typography variant="h4" sx={{ mt: 1 }}>
+        <Typography variant={compact ? "h5" : "h4"} sx={{ mt: compact ? 0.5 : 1 }}>
           {value}
         </Typography>
       </CardContent>
